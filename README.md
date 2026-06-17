@@ -1,6 +1,12 @@
-# WSY Codex Plugins
+# Marcle Codex Plugins
 
 This directory is a local Codex plugin marketplace.
+
+Codex CLI expects the marketplace manifest at:
+
+```text
+.agents/plugins/marketplace.json
+```
 
 ## Install on a device
 
