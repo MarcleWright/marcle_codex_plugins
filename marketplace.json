@@ -1,0 +1,20 @@
+{
+  "name": "marcle-codex-plugins",
+  "interface": {
+    "displayName": "Marcle Codex Plugins"
+  },
+  "plugins": [
+    {
+      "name": "image-gen-openai-hk",
+      "source": {
+        "source": "local",
+        "path": "./plugins/image-gen-openai-hk"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
