@@ -1,11 +1,14 @@
 #!/usr/bin/env python
-"""Curl-compatible gpt-image-2 wrapper for the local Codex plugin.
+"""Curl-compatible image wrapper for the local Codex plugin.
 
 Text-to-image:
   python gpt_image_2_curl.py "a white siamese cat"
 
 Image edit:
   python gpt_image_2_curl.py "make a product poster" --image ref1.png --image ref2.png
+
+Gemini / nano-banana:
+  python gpt_image_2_curl.py "gemini nano-banana, a white siamese cat" --ratio 9:16
 
 Requires OPENAI_HK_IMAGE_KEY, openai-hk_image_key, or a local .env file on each device.
 """
@@ -30,6 +33,19 @@ from typing import Iterable
 DEFAULT_API_BASE = "https://api.openai-hk.com"
 PLUGIN_NAME = "image-gen-openai-hk"
 ENV_KEYS = ("OPENAI_HK_IMAGE_KEY", "openai-hk_image_key")
+DEFAULT_GPT_MODEL = "gpt-image-2"
+DEFAULT_GPT_SIZE = "1024x1024"
+DEFAULT_GPT_QUALITY = "medium"
+DEFAULT_NANO_MODEL = "nano-banana-2"
+DEFAULT_NANO_SIZE = "16x9"
+DEFAULT_NANO_QUALITY = "low"
+NANO_BANANA_MODELS = {
+    "nano-banana",
+    "nano-banana-2",
+    "nano-banana-2-2k",
+    "nano-banana-2-4k",
+}
+NANO_BANANA_SIZES = {"4x3", "3x4", "16x9", "9x16", "2x3", "3x2"}
 
 
 def plugin_root() -> Path:
@@ -250,6 +266,23 @@ def normalize_k(value: str) -> str:
     return value
 
 
+def ratio_to_nano_size(value: str) -> str:
+    return normalize_ratio(value).replace(":", "x")
+
+
+def is_nano_model(model: str | None) -> bool:
+    return bool(model and model.strip().lower() in NANO_BANANA_MODELS)
+
+
+def mentions_nano_banana(text: str) -> bool:
+    return bool(re.search(r"\b(?:nano[-\s]?banana|nanobanana|gemini)\b", text, re.IGNORECASE))
+
+
+def mentions_k_tier(text: str, tier: str) -> bool:
+    number = tier.lower().removesuffix("k")
+    return bool(re.search(rf"(?<!\w){number}\s*k(?!\w)", text, re.IGNORECASE))
+
+
 def size_from_ratio_k(ratio: str | None, k: str | None) -> str | None:
     if not ratio and not k:
         return None
@@ -262,9 +295,110 @@ def size_from_ratio_k(ratio: str | None, k: str | None) -> str | None:
     return SIZE_BY_RATIO_AND_K[key]
 
 
-def resolve_size(size: str, ratio: str | None, k: str | None) -> str:
-    resolved = size_from_ratio_k(ratio, k)
-    return resolved or size
+def resolve_provider(args: argparse.Namespace) -> str:
+    if args.nano_banana:
+        return "nano-banana"
+    if args.provider != "auto":
+        return args.provider
+    if is_nano_model(args.model) or mentions_nano_banana(args.prompt):
+        return "nano-banana"
+    return "gpt-image"
+
+
+def resolve_model(args: argparse.Namespace, provider: str) -> str:
+    requested = args.model.strip().lower() if args.model else None
+    if provider == "gpt-image":
+        if is_nano_model(requested):
+            raise ValueError("A nano-banana model requires --provider nano-banana or --nano-banana.")
+        return args.model or DEFAULT_GPT_MODEL
+
+    if requested:
+        if requested == "nano-banana":
+            return DEFAULT_NANO_MODEL
+        if requested in NANO_BANANA_MODELS:
+            return requested
+        raise ValueError(f"Unsupported nano-banana model: {args.model}")
+
+    k = normalize_k(args.k) if args.k else None
+    if k == "4k" or mentions_k_tier(args.prompt, "4k"):
+        return "nano-banana-2-4k"
+    if k == "2k" or mentions_k_tier(args.prompt, "2k"):
+        return "nano-banana-2-2k"
+    return DEFAULT_NANO_MODEL
+
+
+def resolve_quality(args: argparse.Namespace, provider: str) -> str:
+    if args.quality:
+        return args.quality
+    return DEFAULT_NANO_QUALITY if provider == "nano-banana" else DEFAULT_GPT_QUALITY
+
+
+def resolve_size(args: argparse.Namespace, provider: str) -> str:
+    if provider == "nano-banana":
+        if args.ratio:
+            size = ratio_to_nano_size(args.ratio)
+        elif args.size:
+            size = ratio_to_nano_size(args.size)
+        else:
+            size = DEFAULT_NANO_SIZE
+        if size not in NANO_BANANA_SIZES:
+            supported = ", ".join(sorted(NANO_BANANA_SIZES))
+            raise ValueError(f"Unsupported nano-banana size: {size}. Supported: {supported}")
+        return size
+
+    resolved = size_from_ratio_k(args.ratio, args.k)
+    return resolved or args.size or DEFAULT_GPT_SIZE
+
+
+def generation_payload(
+    provider: str,
+    prompt: str,
+    model: str,
+    size: str,
+    quality: str,
+    n: int,
+    response_format: str,
+) -> dict:
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "n": n,
+        "size": size,
+        "quality": quality,
+    }
+    if provider == "gpt-image":
+        payload["response_format"] = response_format
+    return payload
+
+
+def edit_fields(
+    args: argparse.Namespace,
+    provider: str,
+    model: str,
+    size: str,
+    quality: str,
+    response_format: str,
+) -> dict[str, str]:
+    fields = {
+        "model": model,
+        "prompt": args.prompt,
+    }
+    if provider == "gpt-image":
+        fields.update({
+            "n": str(args.n),
+            "size": size,
+            "quality": quality,
+            "response_format": response_format,
+        })
+        return fields
+
+    if args.n != 1:
+        fields["n"] = str(args.n)
+    if args.size or args.ratio:
+        fields["size"] = size
+    if args.quality:
+        fields["quality"] = quality
+    return fields
 
 
 def quote_for_curl(value: str) -> str:
@@ -273,30 +407,34 @@ def quote_for_curl(value: str) -> str:
     return shlex.quote(value)
 
 
-def redacted_curl(args: argparse.Namespace, resolved_size: str, image_paths: list[Path]) -> str:
+def redacted_curl(
+    args: argparse.Namespace,
+    provider: str,
+    resolved_model: str,
+    resolved_size: str,
+    resolved_quality: str,
+    image_paths: list[Path],
+) -> str:
     api_base = args.api_base.rstrip("/")
     auth_header = "Authorization: Bearer ${env:OPENAI_HK_IMAGE_KEY}"
     if image_paths:
+        fields = edit_fields(args, provider, resolved_model, resolved_size, resolved_quality, args.response_format)
         parts = [
             "curl.exe -X POST " + quote_for_curl(f"{api_base}/v1/images/edits"),
             "  -H " + quote_for_curl(auth_header),
-            "  -F " + quote_for_curl(f"model={args.model}"),
-            "  -F " + quote_for_curl(f"prompt={args.prompt}"),
-            "  -F " + quote_for_curl(f"n={args.n}"),
-            "  -F " + quote_for_curl(f"size={resolved_size}"),
-            "  -F " + quote_for_curl(f"quality={args.quality}"),
-            "  -F " + quote_for_curl(f"response_format={args.response_format}"),
         ]
+        parts.extend("  -F " + quote_for_curl(f"{key}={value}") for key, value in fields.items())
         parts.extend("  -F " + quote_for_curl(f"image[]=@{path}") for path in image_paths)
     else:
-        payload = {
-            "model": args.model,
-            "prompt": args.prompt,
-            "n": args.n,
-            "size": resolved_size,
-            "quality": args.quality,
-            "response_format": args.response_format,
-        }
+        payload = generation_payload(
+            provider,
+            args.prompt,
+            resolved_model,
+            resolved_size,
+            resolved_quality,
+            args.n,
+            args.response_format,
+        )
         parts = [
             "curl.exe -X POST " + quote_for_curl(f"{api_base}/v1/images/generations"),
             "  -H " + quote_for_curl(auth_header),
@@ -307,14 +445,16 @@ def redacted_curl(args: argparse.Namespace, resolved_size: str, image_paths: lis
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate/edit images using the gpt-image-2 OpenAI-HK API.")
+    parser = argparse.ArgumentParser(description="Generate/edit images using OpenAI-HK image APIs.")
     parser.add_argument("prompt", help="Image prompt")
-    parser.add_argument("--model", default="gpt-image-2", help="Model: gpt-image-2, gpt-image-1, gpt-image-1.5")
+    parser.add_argument("--provider", default="auto", choices=["auto", "gpt-image", "nano-banana"], help="Provider preset")
+    parser.add_argument("--nano-banana", action="store_true", help="Use the Gemini/nano-banana preset")
+    parser.add_argument("--model", help="Model, e.g. gpt-image-2, nano-banana-2, nano-banana-2-2k, nano-banana-2-4k")
     parser.add_argument("--api-base", default=DEFAULT_API_BASE, help="API base URL")
-    parser.add_argument("--size", default="1024x1024", help="Image size, e.g. 1024x1024 or 2048x1152")
+    parser.add_argument("--size", help="Image size, e.g. 1024x1024 for gpt-image or 9x16 for nano-banana")
     parser.add_argument("--ratio", help="Optional aspect ratio for auto size lookup, e.g. 16:9, 9:16, 1:1")
     parser.add_argument("--k", help="Optional resolution tier for auto size lookup: 1K, 2K, or 4K")
-    parser.add_argument("--quality", default="medium", help="Quality: low, medium, high, auto")
+    parser.add_argument("--quality", help="Quality: low, medium, high, auto")
     parser.add_argument("--n", type=int, default=1, help="Number of images")
     parser.add_argument("--response-format", default="url", choices=["url", "b64_json"], help="API response format")
     parser.add_argument("--output", default=str(default_output_dir()), help="Output directory")
@@ -330,50 +470,48 @@ def main() -> int:
 
     try:
         output_dir = Path(args.output).expanduser()
-        resolved_size = resolve_size(args.size, args.ratio, args.k)
+        provider = resolve_provider(args)
+        resolved_model = resolve_model(args, provider)
+        resolved_size = resolve_size(args, provider)
+        resolved_quality = resolve_quality(args, provider)
         image_paths = [Path(path).expanduser() for path in args.image]
         for path in image_paths:
             if not path.exists():
                 raise RuntimeError(f"Reference image not found: {path}")
 
         if args.show_curl:
-            print(redacted_curl(args, resolved_size, image_paths))
+            print(redacted_curl(args, provider, resolved_model, resolved_size, resolved_quality, image_paths))
             return 0
 
         api_key = load_api_key()
         api_base = args.api_base.rstrip("/")
 
         if image_paths:
-            fields = {
-                "model": args.model,
-                "prompt": args.prompt,
-                "n": str(args.n),
-                "size": resolved_size,
-                "quality": args.quality,
-                "response_format": args.response_format,
-            }
+            fields = edit_fields(args, provider, resolved_model, resolved_size, resolved_quality, args.response_format)
             result = request_multipart(f"{api_base}/v1/images/edits", api_key, fields, image_paths)
             mode = "edit"
         else:
-            payload = {
-                "model": args.model,
-                "prompt": args.prompt,
-                "n": args.n,
-                "size": resolved_size,
-                "quality": args.quality,
-                "response_format": args.response_format,
-            }
+            payload = generation_payload(
+                provider,
+                args.prompt,
+                resolved_model,
+                resolved_size,
+                resolved_quality,
+                args.n,
+                args.response_format,
+            )
             result = request_json(f"{api_base}/v1/images/generations", api_key, payload)
             mode = "generation"
 
-        saved = save_response_images(result, output_dir, args.model, download_url=not args.no_download_url)
+        saved = save_response_images(result, output_dir, resolved_model, download_url=not args.no_download_url)
         urls = [item.get("url") for item in (result.get("data") or []) if item.get("url")]
         print(json.dumps({
             "success": True,
             "mode": mode,
-            "model": args.model,
+            "provider": provider,
+            "model": resolved_model,
             "size": resolved_size,
-            "quality": args.quality,
+            "quality": resolved_quality,
             "paths": [str(path) for path in saved],
             "urls": urls,
             "usage": result.get("usage"),

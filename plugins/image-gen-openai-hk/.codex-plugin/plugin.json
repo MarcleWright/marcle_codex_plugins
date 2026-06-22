@@ -1,7 +1,7 @@
 {
   "name": "image-gen-openai-hk",
-  "version": "0.1.0+codex.20260617075058",
-  "description": "Generate and edit images with gpt-image-2 through OpenAI-HK curl-compatible endpoints.",
+  "version": "0.1.0+codex.20260622054602",
+  "description": "Generate and edit images with gpt-image-2 and Gemini/nano-banana through OpenAI-HK curl-compatible endpoints.",
   "author": {
     "name": "Freshman"
   },
@@ -9,14 +9,16 @@
   "keywords": [
     "image-generation",
     "gpt-image-2",
+    "nano-banana",
+    "gemini",
     "openai-hk",
     "curl"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Image Gen OpenAI-HK",
-    "shortDescription": "Generate and edit images through OpenAI-HK gpt-image-2.",
-    "longDescription": "A local Codex plugin for OpenAI-HK image generation. It provides a skill and script for text-to-image and image editing requests against gpt-image-2 curl-compatible endpoints, saves generated images locally, and can print redacted curl examples.",
+    "shortDescription": "Generate and edit images through OpenAI-HK gpt-image-2 and nano-banana.",
+    "longDescription": "A local Codex plugin for OpenAI-HK image generation. It provides a skill and script for text-to-image and image editing requests against gpt-image-2 by default, switches to Gemini/nano-banana when requested, saves generated images locally, and can print redacted curl examples.",
     "developerName": "Freshman",
     "category": "Productivity",
     "capabilities": [
@@ -26,6 +28,7 @@
     "defaultPrompt": [
       "Generate an image with gpt-image-2.",
       "Edit this image with gpt-image-2.",
+      "Generate an image with nano-banana.",
       "Show me the gpt-image-2 curl command."
     ]
   }

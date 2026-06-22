@@ -1,20 +1,20 @@
 ---
 name: image-generation-openai
-description: "Use the local gpt-image-2 curl-compatible OpenAI-HK script for image generation and image editing."
-version: 1.0.0
-author: Freshman
+description: "Use the local OpenAI-HK curl-compatible script for gpt-image-2 by default, with Gemini/nano-banana when requested."
 license: MIT
 metadata:
-  tags: [image-generation, openai-hk, gpt-image-2, curl, creative]
+  tags: [image-generation, openai-hk, gpt-image-2, nano-banana, gemini, curl, creative]
 ---
 
 # Image Gen OpenAI-HK
 
-Use this skill by default when the user asks Codex to generate, draw, create, or edit raster images with GPT Image 2, OpenAI-HK, or a curl-style image API workflow.
+Use this skill by default when the user asks Codex to generate, draw, create, or edit raster images with GPT Image 2, OpenAI-HK, Gemini/nano-banana, or a curl-style image API workflow.
 
 Important default rule for this user:
 
 - If the user says "生图", "画图", "生成图片", "改图", "图生图", "做海报", "做视觉图", "生成概念图", or similar image generation/editing language, use this skill and the local script by default.
+- Default to `gpt-image-2`.
+- Use Gemini/nano-banana only when the user mentions "nano-banana", "nanobanana", "nano banana", or "gemini", or explicitly asks for a nano-banana model.
 - Do not use Codex's built-in/default image generation when the user asks for this OpenAI-HK / gpt-image-2 path.
 - Exception: if the user explicitly asks Codex to create SVG/vector/code-native art, follow that request instead.
 
@@ -50,6 +50,15 @@ response_format = url
 output = <home>/Pictures/codex-generated/image-gen-openai-hk/<session-project-folder>
 ```
 
+Gemini/nano-banana defaults when requested:
+
+```text
+provider = nano-banana
+model = nano-banana-2
+quality = low
+size = 16x9
+```
+
 ## Requirements
 
 The API key may be supplied through any of these options:
@@ -75,6 +84,50 @@ Useful parameters:
 python D:/00_Projects_WSY/AI/Codex_Projects/marcle_codex_plugins/plugins/image-gen-openai-hk/scripts/gpt_image_2_curl.py "PROMPT" --model gpt-image-2 --size 1024x1024 --quality medium
 ```
 
+## Gemini / nano-banana
+
+Only use nano-banana when the user mentions "nano-banana", "nanobanana", "nano banana", or "gemini".
+
+The script can infer nano-banana from the prompt text, but passing `--provider nano-banana` or `--nano-banana` is clearer when Codex has already decided the request is for Gemini/nano-banana:
+
+```powershell
+python D:/00_Projects_WSY/AI/Codex_Projects/marcle_codex_plugins/plugins/image-gen-openai-hk/scripts/gpt_image_2_curl.py "a white siamese cat" --provider nano-banana --size 9x16
+```
+
+Model selection:
+
+```text
+default -> nano-banana-2
+mentions 2k or --k 2K -> nano-banana-2-2k
+mentions 4k or --k 4K -> nano-banana-2-4k
+```
+
+Supported nano-banana sizes:
+
+```text
+4x3
+3x4
+16x9
+9x16
+2x3
+3x2
+```
+
+For ratio wording, pass `--ratio`; the script converts `9:16` to the nano-banana API's `9x16` format:
+
+```powershell
+python D:/00_Projects_WSY/AI/Codex_Projects/marcle_codex_plugins/plugins/image-gen-openai-hk/scripts/gpt_image_2_curl.py "gemini nano-banana product poster, 2k" --ratio 9:16 --k 2K
+```
+
+Direct curl shape for nano-banana text-to-image:
+
+```powershell
+curl.exe -X POST "https://api.openai-hk.com/v1/images/generations" `
+  -H "Authorization: Bearer ${env:OPENAI_HK_IMAGE_KEY}" `
+  -H "Content-Type: application/json" `
+  -d '{"model":"nano-banana-2","prompt":"a white siamese cat","n":1,"size":"9x16","quality":"low"}'
+```
+
 ## Show curl example
 
 To show a redacted curl command without making the API request:
@@ -91,6 +144,8 @@ curl.exe -X POST "https://api.openai-hk.com/v1/images/generations" `
   -H "Content-Type: application/json" `
   -d '{"model":"gpt-image-2","prompt":"a white siamese cat","n":1,"size":"1024x1024","quality":"medium","response_format":"url"}'
 ```
+
+For nano-banana, `--show-curl` emits the nano-banana JSON payload and omits `response_format`.
 
 ## Ratio plus K auto sizing
 
@@ -151,6 +206,12 @@ python D:/00_Projects_WSY/AI/Codex_Projects/marcle_codex_plugins/plugins/image-g
 
 This calls `/v1/images/edits` and sends files as `image[]` form fields.
 
+For nano-banana image editing, pass `--provider nano-banana` and repeat `--image` for each reference:
+
+```powershell
+python D:/00_Projects_WSY/AI/Codex_Projects/marcle_codex_plugins/plugins/image-gen-openai-hk/scripts/gpt_image_2_curl.py "Generate a photorealistic image of a gift basket on a white background labeled Relax & Unwind" --provider nano-banana --image C:/path/body-lotion.png --image C:/path/bath-bomb.png --image C:/path/incense-kit.png --image C:/path/soap.png
+```
+
 Direct curl shape for image editing:
 
 ```powershell
@@ -161,6 +222,17 @@ curl.exe -X POST "https://api.openai-hk.com/v1/images/edits" `
   -F "prompt=Generate a photorealistic product poster"
 ```
 
+Direct curl shape for nano-banana image editing:
+
+```powershell
+curl.exe -X POST "https://api.openai-hk.com/v1/images/edits" `
+  -H "Authorization: Bearer ${env:OPENAI_HK_IMAGE_KEY}" `
+  -F "model=nano-banana-2" `
+  -F "prompt=Generate a photorealistic product poster" `
+  -F "image[]=@C:/path/ref1.png" `
+  -F "image[]=@C:/path/ref2.png"
+```
+
 ## Response handling
 
 The script prints JSON like:
@@ -169,6 +241,7 @@ The script prints JSON like:
 {
   "success": true,
   "mode": "generation",
+  "provider": "gpt-image",
   "model": "gpt-image-2",
   "size": "2048x1152",
   "quality": "medium",
