@@ -33,7 +33,7 @@ from typing import Iterable
 DEFAULT_API_BASE = "https://api.openai-hk.com"
 PLUGIN_NAME = "image-gen-openai-hk"
 ENV_KEYS = ("OPENAI_HK_IMAGE_KEY", "openai-hk_image_key")
-DEFAULT_GPT_MODEL = "gpt-image-2"
+DEFAULT_GPT_MODEL = "gpt-image-2.5"
 DEFAULT_GPT_SIZE = "1024x1024"
 DEFAULT_GPT_QUALITY = "medium"
 DEFAULT_NANO_MODEL = "nano-banana-2"
@@ -449,7 +449,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("prompt", help="Image prompt")
     parser.add_argument("--provider", default="auto", choices=["auto", "gpt-image", "nano-banana"], help="Provider preset")
     parser.add_argument("--nano-banana", action="store_true", help="Use the Gemini/nano-banana preset")
-    parser.add_argument("--model", help="Model, e.g. gpt-image-2, nano-banana-2, nano-banana-2-2k, nano-banana-2-4k")
+    parser.add_argument("--model", help="Model, e.g. gpt-image-2.5, nano-banana-2, nano-banana-2-2k, nano-banana-2-4k")
     parser.add_argument("--api-base", default=DEFAULT_API_BASE, help="API base URL")
     parser.add_argument("--size", help="Image size, e.g. 1024x1024 for gpt-image or 9x16 for nano-banana")
     parser.add_argument("--ratio", help="Optional aspect ratio for auto size lookup, e.g. 16:9, 9:16, 1:1")

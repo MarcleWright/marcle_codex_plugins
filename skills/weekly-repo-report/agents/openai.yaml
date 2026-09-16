@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weekly Repo Report"
+  short_description: "Summarize Git work as a PM-friendly weekly report"
+  default_prompt: "Use $weekly-repo-report to summarize the previous natural calendar week's repository work in the standard Chinese report format."
