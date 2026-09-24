@@ -1,11 +1,11 @@
 ---
-name: review-gate
-description: Review software task plans or coder changes when asked to review; explain evidence, responsibility, and the recommended next step.
+name: marcle-code-review
+description: Explicit-only review of coder implementation against a task or intended behavior; not for plan review.
 ---
 
-# Review Gate
+# Marcle-Code-Review
 
-Use for software task or coder-implementation reviews. Review is read-only unless the user asks for changes. Respond in Chinese:
+Use only when explicitly invoked as `$marcle-code-review`. Review coder implementation, not task plans. Review is read-only unless the user asks for changes. Respond in Chinese:
 
 1. State **Approved** or **Changes Requested** and whether the next stage may proceed.
 2. Explain the causal/ownership relationship and product impact briefly, with high logic and little code; avoid long tutorials.
