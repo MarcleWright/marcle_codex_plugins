@@ -1,0 +1,4 @@
+interface:
+  display_name: "HF 下载"
+  short_description: "配置 HF 环境、认证与镜像，在本地可见终端下载模型或数据集"
+  default_prompt: "使用 $hf-download 检查下载环境和目标文件，并在本地可见 PowerShell 或 CMD 窗口中下载，展示原生进度。"
