@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marcle Goal Excution"
+  short_description: "按项目规模推进长任务，包含设计复审、独立实现审查与返修归因"
+  default_prompt: "使用 $marcle-goal-excution 按既有项目约束执行当前长任务，先复审子任务设计，再实施与独立审查。"

@@ -24,6 +24,16 @@ Use this skill when the user asks for a weekly report, last-week summary, or pro
 - Do not invent impact metrics, user outcomes, roadmap commitments, or unverified functionality. Use qualitative value statements when metrics are unavailable.
 - Combine overlapping work and prioritize user-facing capabilities, then reliability and foundational work.
 
+## Skill system work
+
+Recognize Skill platform work as a meaningful product/platform workstream when the history includes terms such as `skill installation`, `skill installer`, `skill creator`, skill scaffolding, skill discovery, validation, packaging, or versioning. Summarize the user or team value rather than only naming the internal mechanism:
+
+- Skill installation or installer work can represent faster capability onboarding, more consistent setup, and easier reuse across projects.
+- Skill creator or scaffolding work can represent lower authoring cost, more standardized skills, and a clearer extension path for the product.
+- Discovery, validation, packaging, or versioning work can represent better maintainability, quality control, and safer distribution.
+
+Only include this workstream when it is supported by the selected period's commits or project files; do not add it as a generic claim.
+
 ## Required output format
 
 Return only the report unless the user asks for explanation:

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Marcle Doc Governance"
+  short_description: "Gates, creates, and maintains project documentation."
+  default_prompt: "Use $marcle-doc-governance to decide whether this task needs no doc update, light AI context/dev log maintenance, or full documentation governance."
+
+policy:
+  allow_implicit_invocation: false
